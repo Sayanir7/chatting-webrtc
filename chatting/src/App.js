@@ -58,7 +58,7 @@ function App() {
 
   // Handle room full + offer creation
   useEffect(() => {
-    
+
     if (!joined) {
       socket.on('room-full', () => {
         setRoomFull(true);
@@ -76,11 +76,11 @@ function App() {
     if (!joined || roomFull) return;
 
     socket.on('user-joined', async () => {
-        console.log('🧑‍🤝‍🧑 Creating offer...');
-        const offer = await peerConnection.current.createOffer();
-        await peerConnection.current.setLocalDescription(offer);
-        socket.emit('offer', { offer, room: roomId });
-      });
+      console.log('🧑‍🤝‍🧑 Creating offer...');
+      const offer = await peerConnection.current.createOffer();
+      await peerConnection.current.setLocalDescription(offer);
+      socket.emit('offer', { offer, room: roomId });
+    });
     socket.on('offer', async (offer) => {
       console.log('📥 Received offer');
       await peerConnection.current.setRemoteDescription(offer);
@@ -112,36 +112,101 @@ function App() {
     };
   }, [joined, roomId, roomFull]);
 
+  const styles = {
+    container: {
+      textAlign: 'center',
+      padding: '20px',
+      fontFamily: 'Arial, sans-serif',
+    },
+    title: {
+      fontSize: '28px',
+      marginBottom: '20px',
+    },
+    formContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '10px',
+      marginBottom: '20px',
+    },
+    input: {
+      padding: '10px',
+      fontSize: '16px',
+      width: '250px',
+      maxWidth: '90%',
+      borderRadius: '6px',
+      border: '1px solid #ccc',
+    },
+    button: {
+      padding: '10px 20px',
+      fontSize: '16px',
+      backgroundColor: '#4CAF50',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer',
+    },
+    joinedText: {
+      fontSize: '18px',
+      marginBottom: '20px',
+    },
+    videoContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '30px',
+    },
+    videoBlock: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '10px',
+    },
+    video: {
+      width: '90%',
+      maxWidth: '400px',
+      borderRadius: '12px',
+      border: '2px solid #ddd',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+    },
+  };
+
+
   return (
-    <div style={{ textAlign: 'center', marginTop: '20px' }}>
-      <h2>🎥 WebRTC Video Chat</h2>
+    <div style={styles.container}>
+      <h2 style={styles.title}>🎥 Video Chat</h2>
+
       {!joined || roomFull ? (
-        <div>
+        <div style={styles.formContainer}>
           <input
             type="text"
             placeholder="Enter Room ID"
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
-            // disabled={roomFull}
+            style={styles.input}
           />
-          <button onClick={handleJoin} >Join Room</button>
+          <button onClick={handleJoin} style={styles.button}>
+            Join Room
+          </button>
         </div>
       ) : (
-        <p>🟢 Joined Room: <b>{roomId}</b></p>
-        
+        <p style={styles.joinedText}>
+          🟢 Joined Room: <b>{roomId}</b>
+        </p>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', gap: '20px' }}>
-        <div>
+      <div style={styles.videoContainer}>
+        <div style={styles.videoBlock}>
           <h4>📷 Local Video</h4>
-          <video ref={localVideoRef} autoPlay playsInline muted width="300" />
+          <video ref={localVideoRef} autoPlay playsInline muted style={styles.video} />
         </div>
-        <div>
+        <div style={styles.videoBlock}>
           <h4>🌐 Remote Video</h4>
-          <video ref={remoteVideoRef} autoPlay playsInline width="300" />
+          <video ref={remoteVideoRef} autoPlay playsInline style={styles.video} />
         </div>
       </div>
-    </div> 
+    </div>
+
   );
 }
 
