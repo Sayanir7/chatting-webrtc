@@ -81,7 +81,10 @@ io.on('connection', (socket) => {
 
   // Optional: Text chat
   socket.on('chat-message', ({ room, message }) => {
-    socket.to(room).emit('chat-message', { message, sender: socket.id });
+    socket.to(room).emit('chat-message', {
+      message,
+      sender: socket.id,
+    });
   });
 
   // Handle disconnect
