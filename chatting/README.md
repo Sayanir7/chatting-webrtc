@@ -1,70 +1,204 @@
-# Getting Started with Create React App
+import React, { useEffect, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+const socket = io('https://chatting-server-zxbx.onrender.com');
+const config = {
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+};
 
-## Available Scripts
+function App() {
+  const peerConnection = useRef(null);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const localStream = useRef(null);
+  const [roomId, setRoomId] = useState('');
+  const [joined, setJoined] = useState(false);
+  const [roomFull, setRoomFull] = useState(false);
 
-In the project directory, you can run:
+  const handleJoin = async () => {
+    if (!roomId || roomFull) return;
 
-### `npm start`
+    // Get user media
+    try {
+      localStream.current = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      localVideoRef.current.srcObject = localStream.current;
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+      // Create peer connection
+      peerConnection.current = new RTCPeerConnection(config);
+      console.log('🔧 PeerConnection created');
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+      // Add tracks
+      localStream.current.getTracks().forEach((track) => {
+        peerConnection.current.addTrack(track, localStream.current);
+      });
 
-### `npm test`
+      // Handle remote stream
+      peerConnection.current.ontrack = (event) => {
+        console.log('📥 Receiving remote stream');
+        remoteVideoRef.current.srcObject = event.streams[0];
+      };
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+      // Handle ICE candidates
+      peerConnection.current.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('ice-candidate', { candidate: event.candidate, room: roomId });
+        }
+      };
 
-### `npm run build`
+      // Join room
+      socket.emit('join', roomId);
+      setJoined(true);
+    } catch (err) {
+      console.error('🚨 Error accessing media devices:', err);
+    }
+  };
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+  // Handle room full + offer creation 
+  useEffect(() => {
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+    if (!joined) {
+      socket.on('room-full', () => {
+        setRoomFull(true);
+        alert('🚫 Room is full! Try different room..');
+      });
+      return () => {
+        socket.off('room-full');
+        socket.off('user-joined');
+      };
+    }
+  }, [joined, roomId]);
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+  // Signaling logic
+  useEffect(() => {
+    if (!joined || roomFull) return;
 
-### `npm run eject`
+    socket.on('user-joined', async () => {
+      console.log('🧑‍🤝‍🧑 Creating offer...');
+      const offer = await peerConnection.current.createOffer();
+      await peerConnection.current.setLocalDescription(offer);
+      socket.emit('offer', { offer, room: roomId });
+    });
+    socket.on('offer', async (offer) => {
+      console.log('📥 Received offer');
+      await peerConnection.current.setRemoteDescription(offer);
+      const answer = await peerConnection.current.createAnswer();
+      await peerConnection.current.setLocalDescription(answer);
+      socket.emit('answer', { answer, room: roomId });
+    });
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+    socket.on('answer', async (answer) => {
+      console.log('📥 Received answer');
+      await peerConnection.current.setRemoteDescription(answer);
+    });
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+    socket.on('ice-candidate', async ({ candidate }) => {
+      if (candidate && peerConnection.current) {
+        try {
+          await peerConnection.current.addIceCandidate(candidate);
+          console.log('✅ Added ICE candidate');
+        } catch (err) {
+          console.error('❌ Error adding ICE candidate', err);
+        }
+      }
+    });
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+    return () => {
+      socket.off('offer');
+      socket.off('answer');
+      socket.off('ice-candidate');
+    };
+  }, [joined, roomId, roomFull]);
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+  const styles = {
+    container: {
+      textAlign: 'center',
+      padding: '20px',
+      fontFamily: 'Arial, sans-serif',
+    },
+    title: {
+      fontSize: '28px',
+      marginBottom: '20px',
+    },
+    formContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '10px',
+      marginBottom: '20px',
+    },
+    input: {
+      padding: '10px',
+      fontSize: '16px',
+      width: '250px',
+      maxWidth: '90%',
+      borderRadius: '6px',
+      border: '1px solid #ccc',
+    },
+    button: {
+      padding: '10px 20px',
+      fontSize: '16px',
+      backgroundColor: '#4CAF50',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer',
+    },
+    joinedText: {
+      fontSize: '18px',
+      marginBottom: '20px',
+    },
+    videoContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '30px',
+    },
+    videoBlock: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '10px',
+    },
+    video: {
+      width: '90%',
+      maxWidth: '400px',
+      borderRadius: '12px',
+      border: '2px solid #ddd',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+    },
+  };
 
-## Learn More
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+  return (
+    <div style={styles.container}>
+      <h2 style={styles.title}>🎥 Video Chat</h2>
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+      {!joined || roomFull ? (
+        <div style={styles.formContainer}>
+          <input
+            type="text"
+            placeholder="Enter Room ID"
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value)}
+            style={styles.input}
+          />
+          <button onClick={handleJoin} style={styles.button}>
+            Join Room
+          </button>
+        </div>
+      ) : (
+        <p style={styles.joinedText}>
+          🟢 Joined Room: <b>{roomId}</b>
+        </p>
+      )}
 
-### Code Splitting
+      
+    </div>
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+  );
+}
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+export default App;
