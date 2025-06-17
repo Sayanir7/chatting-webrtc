@@ -23,16 +23,22 @@ function VideoPage() {
   useEffect(() => {
     socket.emit("check-room", roomId);
 
-    socket.once("room-status", ({ full, dne }) => {
+    socket.once("room-status", ({ full, dne, joined, joinable }) => {
         if (handledRef.current) return; // ✅ Prevent duplicate execution
       handledRef.current = true;
-      if (dne) {
-        alert("Room does not exists for you, please join first!!");
-        navigate("/");
-      } 
-      else{
-        showContent(true);
-      }
+       if (dne) {
+    alert("Room does not exist.");
+    navigate("/");
+  } else if (full) {
+    alert("Room is full.");
+    navigate("/");
+  } else if (joined === false) {
+    // You can now emit a 'join' event here
+    socket.emit("join", roomId);
+    showContent(true);
+  } else if (joinable) {
+    showContent(true);
+  }
     });
   }, []);
 { content && ( <div></div>)}

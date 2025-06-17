@@ -39,18 +39,25 @@ function ChatRoom({ roomId }) {
 
       peerConnection.current.onicecandidate = (e) => {
         if (e.candidate) {
-          socket.emit("ice-candidate", { candidate: e.candidate, room: roomId });
+          socket.emit("ice-candidate", {
+            candidate: e.candidate,
+            room: roomId,
+          });
         }
       };
 
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
+      await peerConnection.current.setRemoteDescription(
+        new RTCSessionDescription(offer)
+      );
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
       socket.emit("answer", { answer, room: roomId });
     });
 
     socket.on("answer", async ({ answer }) => {
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
+      await peerConnection.current.setRemoteDescription(
+        new RTCSessionDescription(answer)
+      );
     });
 
     socket.on("ice-candidate", ({ candidate }) => {
@@ -88,7 +95,8 @@ function ChatRoom({ roomId }) {
     showMediaDiv(true);
     peerConnection.current = new RTCPeerConnection(config);
 
-    dataChannel.current = peerConnection.current.createDataChannel("fileTransfer");
+    dataChannel.current =
+      peerConnection.current.createDataChannel("fileTransfer");
     setupDataChannelEvents(dataChannel.current);
 
     peerConnection.current.onicecandidate = (e) => {
@@ -112,7 +120,9 @@ function ChatRoom({ roomId }) {
           fileMeta.current = msg;
           receivedChunks.current = [];
         } else if (msg.type === "done") {
-          const blob = new Blob(receivedChunks.current, { type: fileMeta.current.fileType });
+          const blob = new Blob(receivedChunks.current, {
+            type: fileMeta.current.fileType,
+          });
           const url = URL.createObjectURL(blob);
 
           // Auto-preview
@@ -126,14 +136,17 @@ function ChatRoom({ roomId }) {
           };
 
           setMessages((prev) => [...prev, filePreview]);
-          cleanupConnection(); 
+          cleanupConnection();
         }
       } else {
         receivedChunks.current.push(event.data);
       }
     };
 
-    channel.onclose = () => console.log("❌ File DataChannel closed");
+    channel.onclose = () => {
+      showMediaDiv(false);
+      console.log("❌ File DataChannel closed");
+    };
   };
 
   const sendFile = () => {
@@ -142,8 +155,7 @@ function ChatRoom({ roomId }) {
       return;
     }
     const file = media;
-    if(!file) return;
-    
+    if (!file) return;
 
     const chunkSize = 16 * 1024;
     let offset = 0;
@@ -199,23 +211,25 @@ function ChatRoom({ roomId }) {
       const isImage = msg.file.type.startsWith("image");
       const isVideo = msg.file.type.startsWith("video");
       return (
-        <div style={{display:"flex", alignItems:"center"}}>
-          {msg.sender==="me" && (
+        <div style={{ display: "flex", alignItems: "center" }}>
+          {msg.sender === "me" && (
             <a href={msg.file.url} download={msg.file.name}>
-            ⬇️
-          </a>
+              ⬇️
+            </a>
           )}
-          {isImage && <img src={msg.file.url} alt="sent" style={{ maxWidth: "200px" }} />}
+          {isImage && (
+            <img src={msg.file.url} alt="sent" style={{ maxWidth: "200px" }} />
+          )}
           {isVideo && (
             <video controls style={{ maxWidth: "200px" }}>
               <source src={msg.file.url} type={msg.file.type} />
             </video>
           )}
           <br />
-          {msg.sender!=="me" && (
+          {msg.sender !== "me" && (
             <a href={msg.file.url} download={msg.file.name}>
-            ⬇️
-          </a>
+              ⬇️
+            </a>
           )}
         </div>
       );
@@ -223,27 +237,26 @@ function ChatRoom({ roomId }) {
 
     return null;
   };
-  const cleanupConnection = () => {
-  try {
-    if (dataChannel.current) {
-      dataChannel.current.close();
-      dataChannel.current = null;
+    const cleanupConnection = () => {
+    try {
+      showMediaDiv(false);
+      if (dataChannel.current) {
+        dataChannel.current.close();
+        dataChannel.current = null;
+      }
+      if (peerConnection.current) {
+        peerConnection.current.close();
+        peerConnection.current = null;
+      }
+      receivedChunks.current = [];
+      fileMeta.current = null;
+      console.log("🧹 WebRTC connection cleaned up");
+    } catch (err) {
+      console.error("❌ Error during cleanup:", err);
     }
-    if (peerConnection.current) {
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
-    receivedChunks.current = [];
-    fileMeta.current = null;
-    console.log("🧹 WebRTC connection cleaned up");
-  } catch (err) {
-    console.error("❌ Error during cleanup:", err);
-  }
-};
+  };
 
-
-
-// UIIIIIII
+  // UIIIIIII
   return (
     <div style={{ padding: "20px" }}>
       <h2>💬 Chat Room: {roomId}</h2>
@@ -291,7 +304,9 @@ function ChatRoom({ roomId }) {
             alignItems: "center",
           }}
         >
-          <button onClick={() => setShowEmojiPicker((prev) => !prev)}>😊</button>
+          <button onClick={() => setShowEmojiPicker((prev) => !prev)}>
+            😊
+          </button>
           <button onClick={sendMedia}>📎</button>
           <input
             type="text"
@@ -305,7 +320,10 @@ function ChatRoom({ roomId }) {
               border: "1px solid #ccc",
             }}
           />
-          <button onClick={sendMessage} style={{ backgroundColor: "#4CAF50", color: "white" }}>
+          <button
+            onClick={sendMessage}
+            style={{ backgroundColor: "#4CAF50", color: "white" }}
+          >
             Send
           </button>
         </div>
@@ -317,7 +335,7 @@ function ChatRoom({ roomId }) {
         )}
 
         {mediaDiv && (
-          <div style={{ marginTop: "10px" , flex:"flex"}}>
+          <div style={{ marginTop: "10px", flex: "flex" }}>
             <input
               type="file"
               // value={media}
@@ -327,7 +345,6 @@ function ChatRoom({ roomId }) {
               }}
             />
             <button onClick={sendFile}>send</button>
-
           </div>
         )}
       </div>

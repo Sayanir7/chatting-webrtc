@@ -22,29 +22,33 @@ io.on('connection', (socket) => {
   console.log(rooms);
 
   // Check if room exists and  is  full
- socket.on('check-room', (roomId) => {
-  const clients = rooms[roomId];
+  socket.on('check-room', (roomId) => {
+    const clients = rooms[roomId];
 
-  // Case 1: Room doesn't exist or is empty
-  if (!clients || clients.length === 0) {
-    socket.emit('room-status', { dne: true });
-    return;
-  }
-  else {
-    const full = clients.length >= 2;
-  socket.emit('room-status', { full });
-  }
+    // Case 1: Room doesn't exist or is empty
+    if (!clients || clients.length === 0) {
+      socket.emit('room-status', { dne: true });
+      return;
+    }
 
-  // Case 2: Room exists but user is NOT part of it
-  const alreadyJoined = clients.includes(socket.id);
-  if (!alreadyJoined) {
-    socket.emit('room-status', { dne: true });
-    return;
-  }
+    const alreadyJoined = clients.includes(socket.id);
 
-  // Case 3: Room exists and user is part of it
-  
-});
+    // Case 2: User is not in the room
+    if (!alreadyJoined) {
+      // If room is full, block them
+      if (clients.length >= 2) {
+        socket.emit('room-status', { full: true });
+        return;
+      } else {
+        socket.emit('room-status', { joined: false }); // allowed to join
+        return;
+      }
+    }
+
+    // Case 3: User is already in the room — allowed
+    socket.emit('room-status', { joinable: true });
+  });
+
 
   // Join the room
   socket.on('join', (roomId) => {
@@ -106,7 +110,27 @@ io.on('connection', (socket) => {
     });
   });
 
+  //manual disconnect
+  socket.on("manual-disconnect", (roomId) => {
+    console.log(`🔌 Manual disconnect: ${socket.id} from room ${roomId}`);
+
+    // Remove from rooms
+    // rooms[roomId] = (rooms[roomId] || []).filter((id) => id !== socket.id);
+    // if (rooms[roomId].length === 0) delete rooms[roomId];
+
+    // Remove from ready status
+    if (readyStatus[roomId]) {
+      readyStatus[roomId].delete(socket.id);
+      // if (readyStatus[roomId].size === 0) delete readyStatus[roomId];
+    }
+
+    // Optionally notify others
+    socket.to(roomId).emit("user-left", socket.id);
+  });
+
+
   // Handle disconnect
+
   socket.on('disconnect', () => {
     const roomId = socket.roomId;
     console.log(`🔴 Socket ${socket.id} disconnected`);

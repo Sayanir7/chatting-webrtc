@@ -82,9 +82,11 @@ function VideoChat({ roomId }) {
 
     socket.on("offer", async ({ offer }) => {
       if (!peerConnection.current) {
-    console.warn("⚠️ Offer received before peerConnection initialized. Skipping.");
-    return;
-  }
+        console.warn(
+          "⚠️ Offer received before peerConnection initialized. Skipping."
+        );
+        return;
+      }
       console.log("📥 Received offer");
       await peerConnection.current.setRemoteDescription(
         new RTCSessionDescription(offer)
@@ -159,6 +161,7 @@ function VideoChat({ roomId }) {
   useEffect(() => {
     return () => {
       // 🔌 Close PeerConnection
+      socket.emit("manual-disconnect", roomId);
       if (peerConnection.current) {
         peerConnection.current.ontrack = null;
         peerConnection.current.onicecandidate = null;
@@ -198,51 +201,52 @@ function VideoChat({ roomId }) {
   }, []);
 
   const handleLeaveCall = () => {
-  // Trigger React's unmount cleanup
-   // 🔌 Close PeerConnection
-      if (peerConnection.current) {
-        peerConnection.current.ontrack = null;
-        peerConnection.current.onicecandidate = null;
-        peerConnection.current.close();
-        peerConnection.current = null;
-      }
+    // Trigger React's unmount cleanup
+    // 🔌 Close PeerConnection
+    socket.emit("manual-disconnect", roomId);
+    if (peerConnection.current) {
+      peerConnection.current.ontrack = null;
+      peerConnection.current.onicecandidate = null;
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
 
-      // 🎤 Stop local media
-      if (localStream.current) {
-        localStream.current.getTracks().forEach((track) => track.stop());
-        localStream.current = null;
-      }
+    // 🎤 Stop local media
+    if (localStream.current) {
+      localStream.current.getTracks().forEach((track) => track.stop());
+      localStream.current = null;
+    }
 
-      // 🎥 Clear video elements
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
-      }
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = null;
-      }
+    // 🎥 Clear video elements
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
 
-      // 🧹 Reset all states
-      setMediaStarted(false);
-      setRemoteDescSet(false);
-      setBothReady(false);
-      setPendingCandidates([]);
+    // 🧹 Reset all states
+    setMediaStarted(false);
+    setRemoteDescSet(false);
+    setBothReady(false);
+    setPendingCandidates([]);
 
-      // 📴 Remove socket listeners
-      socket.off("ready");
-      socket.off("start-call");
-      socket.off("offer");
-      socket.off("answer");
-      socket.off("ice-candidate");
+    // 📴 Remove socket listeners
+    socket.off("ready");
+    socket.off("start-call");
+    socket.off("offer");
+    socket.off("answer");
+    socket.off("ice-candidate");
 
-      console.log("🧹 Cleanup completed");
-    
-      navigate(`/chat/${roomId}`);
-};
+    console.log("🧹 Cleanup completed");
+
+    navigate(`/chat/${roomId}`);
+  };
 
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>
       <h2>🎥 Room: {roomId}</h2>
-    
+
       <button onClick={handleStartVideo} disabled={mediaStarted}>
         {mediaStarted ? "Video Started" : "Start Video"}
       </button>
