@@ -19,13 +19,32 @@ const readyStatus = {};   // { roomId: Set(socketIds) }
 
 io.on('connection', (socket) => {
   console.log('🟢 New client connected:', socket.id);
+  console.log(rooms);
 
-  // Check if room is full
-  socket.on('check-room', (roomId) => {
-    const clients = rooms[roomId] || [];
+  // Check if room exists and  is  full
+ socket.on('check-room', (roomId) => {
+  const clients = rooms[roomId];
+
+  // Case 1: Room doesn't exist or is empty
+  if (!clients || clients.length === 0) {
+    socket.emit('room-status', { dne: true });
+    return;
+  }
+  else {
     const full = clients.length >= 2;
-    socket.emit('room-status', { full });
-  });
+  socket.emit('room-status', { full });
+  }
+
+  // Case 2: Room exists but user is NOT part of it
+  const alreadyJoined = clients.includes(socket.id);
+  if (!alreadyJoined) {
+    socket.emit('room-status', { dne: true });
+    return;
+  }
+
+  // Case 3: Room exists and user is part of it
+  
+});
 
   // Join the room
   socket.on('join', (roomId) => {

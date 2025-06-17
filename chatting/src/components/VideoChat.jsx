@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { SocketContext } from "../context/SocketContext";
+import { useNavigate } from "react-router-dom";
 
 const config = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -7,7 +8,7 @@ const config = {
 
 function VideoChat({ roomId }) {
   const socket = useContext(SocketContext);
-
+  const navigate = useNavigate();
   const peerConnection = useRef(null);
   const localStream = useRef(null);
   const localVideoRef = useRef(null);
@@ -16,6 +17,7 @@ function VideoChat({ roomId }) {
   const [mediaStarted, setMediaStarted] = useState(false);
   const [remoteDescSet, setRemoteDescSet] = useState(false);
   const [bothReady, setBothReady] = useState(false);
+  const [pendingCandidates, setPendingCandidates] = useState([]);
 
   // ✅ Called when user clicks Start Video
   const handleStartVideo = async () => {
@@ -40,6 +42,7 @@ function VideoChat({ roomId }) {
       peerConnection.current.ontrack = (event) => {
         console.log("📥 Receiving remote stream");
         remoteVideoRef.current.srcObject = event.streams[0];
+        // console.log("🎥 Local stream tracks:", localStream.current.getTracks());
       };
 
       // ICE candidate handler
@@ -78,8 +81,14 @@ function VideoChat({ roomId }) {
     });
 
     socket.on("offer", async ({ offer }) => {
+      if (!peerConnection.current) {
+    console.warn("⚠️ Offer received before peerConnection initialized. Skipping.");
+    return;
+  }
       console.log("📥 Received offer");
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
+      await peerConnection.current.setRemoteDescription(
+        new RTCSessionDescription(offer)
+      );
       setRemoteDescSet(true);
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
@@ -88,20 +97,28 @@ function VideoChat({ roomId }) {
 
     socket.on("answer", async ({ answer }) => {
       console.log("📥 Received answer");
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
+      await peerConnection.current.setRemoteDescription(
+        new RTCSessionDescription(answer)
+      );
       setRemoteDescSet(true);
     });
 
     socket.on("ice-candidate", async ({ candidate }) => {
-      if (candidate && peerConnection.current && remoteDescSet) {
-        try {
-          await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
-          console.log("✅ Added ICE candidate");
-        } catch (err) {
-          console.error("❌ Error adding ICE candidate", err);
-        }
-      } else {
-        console.log("⏳ ICE skipped: remote description not set yet.");
+      if (!peerConnection.current) return;
+
+      if (!remoteDescSet) {
+        console.log("⏳ ICE queued: remote description not set yet.");
+        setPendingCandidates((prev) => [...prev, candidate]);
+        return;
+      }
+
+      try {
+        await peerConnection.current.addIceCandidate(
+          new RTCIceCandidate(candidate)
+        );
+        console.log("✅ Added ICE candidate");
+      } catch (err) {
+        console.error("❌ Error adding ICE candidate", err);
       }
     });
 
@@ -114,6 +131,22 @@ function VideoChat({ roomId }) {
     };
   }, [socket, roomId, remoteDescSet]);
 
+  useEffect(() => {
+    if (remoteDescSet && pendingCandidates.length > 0) {
+      pendingCandidates.forEach(async (candidate) => {
+        try {
+          await peerConnection.current.addIceCandidate(
+            new RTCIceCandidate(candidate)
+          );
+          console.log("✅ Flushed ICE candidate");
+        } catch (err) {
+          console.error("❌ Error flushing ICE candidate", err);
+        }
+      });
+      setPendingCandidates([]); // Clear after applying
+    }
+  }, [remoteDescSet, pendingCandidates]);
+
   // ✅ Once both users are ready, initiate call from one user only
   useEffect(() => {
     if (bothReady) {
@@ -125,23 +158,95 @@ function VideoChat({ roomId }) {
   // ✅ Cleanup
   useEffect(() => {
     return () => {
+      // 🔌 Close PeerConnection
       if (peerConnection.current) {
+        peerConnection.current.ontrack = null;
+        peerConnection.current.onicecandidate = null;
         peerConnection.current.close();
         peerConnection.current = null;
       }
+
+      // 🎤 Stop local media
       if (localStream.current) {
         localStream.current.getTracks().forEach((track) => track.stop());
         localStream.current = null;
       }
+
+      // 🎥 Clear video elements
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
+
+      // 🧹 Reset all states
+      setMediaStarted(false);
+      setRemoteDescSet(false);
+      setBothReady(false);
+      setPendingCandidates([]);
+
+      // 📴 Remove socket listeners
+      socket.off("ready");
+      socket.off("start-call");
+      socket.off("offer");
+      socket.off("answer");
+      socket.off("ice-candidate");
+
+      console.log("🧹 Cleanup completed");
     };
   }, []);
+
+  const handleLeaveCall = () => {
+  // Trigger React's unmount cleanup
+   // 🔌 Close PeerConnection
+      if (peerConnection.current) {
+        peerConnection.current.ontrack = null;
+        peerConnection.current.onicecandidate = null;
+        peerConnection.current.close();
+        peerConnection.current = null;
+      }
+
+      // 🎤 Stop local media
+      if (localStream.current) {
+        localStream.current.getTracks().forEach((track) => track.stop());
+        localStream.current = null;
+      }
+
+      // 🎥 Clear video elements
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
+
+      // 🧹 Reset all states
+      setMediaStarted(false);
+      setRemoteDescSet(false);
+      setBothReady(false);
+      setPendingCandidates([]);
+
+      // 📴 Remove socket listeners
+      socket.off("ready");
+      socket.off("start-call");
+      socket.off("offer");
+      socket.off("answer");
+      socket.off("ice-candidate");
+
+      console.log("🧹 Cleanup completed");
+    
+      navigate(`/chat/${roomId}`);
+};
 
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>
       <h2>🎥 Room: {roomId}</h2>
+    
       <button onClick={handleStartVideo} disabled={mediaStarted}>
         {mediaStarted ? "Video Started" : "Start Video"}
       </button>
+      <button onClick={handleLeaveCall}>leave</button>
 
       <div
         style={{

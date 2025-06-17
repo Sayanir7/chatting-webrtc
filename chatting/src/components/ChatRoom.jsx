@@ -13,7 +13,7 @@ function ChatRoom({ roomId }) {
   const [input, setInput] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [mediaDiv, showMediaDiv] = useState(false);
-  const [media, setMedia] = useState(false);
+  const [media, setMedia] = useState("");
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
@@ -126,6 +126,7 @@ function ChatRoom({ roomId }) {
           };
 
           setMessages((prev) => [...prev, filePreview]);
+          cleanupConnection(); 
         }
       } else {
         receivedChunks.current.push(event.data);
@@ -135,11 +136,14 @@ function ChatRoom({ roomId }) {
     channel.onclose = () => console.log("❌ File DataChannel closed");
   };
 
-  const sendFile = (file) => {
+  const sendFile = () => {
     if (!dataChannel.current || dataChannel.current.readyState !== "open") {
       alert("DataChannel not open yet");
       return;
     }
+    const file = media;
+    if(!file) return;
+    
 
     const chunkSize = 16 * 1024;
     let offset = 0;
@@ -195,7 +199,12 @@ function ChatRoom({ roomId }) {
       const isImage = msg.file.type.startsWith("image");
       const isVideo = msg.file.type.startsWith("video");
       return (
-        <div>
+        <div style={{display:"flex", alignItems:"center"}}>
+          {msg.sender==="me" && (
+            <a href={msg.file.url} download={msg.file.name}>
+            ⬇️
+          </a>
+          )}
           {isImage && <img src={msg.file.url} alt="sent" style={{ maxWidth: "200px" }} />}
           {isVideo && (
             <video controls style={{ maxWidth: "200px" }}>
@@ -203,16 +212,38 @@ function ChatRoom({ roomId }) {
             </video>
           )}
           <br />
-          <a href={msg.file.url} download={msg.file.name}>
-            ⬇️ Download {msg.file.name}
+          {msg.sender!=="me" && (
+            <a href={msg.file.url} download={msg.file.name}>
+            ⬇️
           </a>
+          )}
         </div>
       );
     }
 
     return null;
   };
+  const cleanupConnection = () => {
+  try {
+    if (dataChannel.current) {
+      dataChannel.current.close();
+      dataChannel.current = null;
+    }
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    receivedChunks.current = [];
+    fileMeta.current = null;
+    console.log("🧹 WebRTC connection cleaned up");
+  } catch (err) {
+    console.error("❌ Error during cleanup:", err);
+  }
+};
 
+
+
+// UIIIIIII
   return (
     <div style={{ padding: "20px" }}>
       <h2>💬 Chat Room: {roomId}</h2>
@@ -220,7 +251,7 @@ function ChatRoom({ roomId }) {
       <div style={{ width: "100%", maxWidth: "500px", margin: "20px auto" }}>
         <div
           style={{
-            height: "240px",
+            height: "440px",
             overflowY: "auto",
             border: "1px solid #ccc",
             borderRadius: "10px",
@@ -229,7 +260,7 @@ function ChatRoom({ roomId }) {
           }}
         >
           {messages.map((msg, index) => (
-            <p
+            <div
               key={index}
               style={{
                 textAlign: msg.sender === "me" ? "right" : "left",
@@ -247,7 +278,7 @@ function ChatRoom({ roomId }) {
               >
                 {renderMessageContent(msg)}
               </span>
-            </p>
+            </div>
           ))}
           <div ref={messagesEndRef} />
         </div>
@@ -286,18 +317,17 @@ function ChatRoom({ roomId }) {
         )}
 
         {mediaDiv && (
-          <div style={{ marginTop: "10px" }}>
+          <div style={{ marginTop: "10px" , flex:"flex"}}>
             <input
               type="file"
+              // value={media}
               onChange={(e) => {
                 const file = e.target.files[0];
-                if (file && file.size < 5 * 1024 * 1024) {
-                  sendFile(file);
-                } else {
-                  alert("File too large (max 5MB)");
-                }
+                setMedia(file);
               }}
             />
+            <button onClick={sendFile}>send</button>
+
           </div>
         )}
       </div>
