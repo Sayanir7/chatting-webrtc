@@ -1,14 +1,15 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import { io } from 'socket.io-client';
 import { SocketContext } from '../context/SocketContext';
-
-
+import { BsBalloonHeart } from "react-icons/bs";
+import { motion, AnimatePresence } from 'framer-motion';
 
 function JoinRoom() {
-    const socket = useContext(SocketContext)
+  const socket = useContext(SocketContext);
   const [roomId, setRoomId] = useState('');
   const [error, setError] = useState('');
+  const [hearts, setHearts] = useState([]);
+  const idRef = useRef(0);
   const navigate = useNavigate();
 
   const handleJoin = () => {
@@ -24,34 +25,58 @@ function JoinRoom() {
     });
   };
 
-  // animation 
+  // Floating heart animation logic
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const id = idRef.current++;
+      const left = Math.random() * 100;
+      const duration = 4 + Math.random() * 4;
+      setHearts((prev) => [...prev, { id, left, duration }]);
 
-   useEffect(() => {
-    const heartContainer = document.createElement('div');
-    heartContainer.className = 'heart-container';
-    document.body.appendChild(heartContainer);
-
-    const createHeart = () => {
-      const heart = document.createElement('div');
-      heart.className = 'heart';
-      heart.style.left = `${Math.random() * 100}%`;
-      heart.style.animationDuration = `${4 + Math.random() * 4}s`;
-      heart.style.opacity = Math.random();
-      heartContainer.appendChild(heart);
-
+      // Remove after 8s
       setTimeout(() => {
-        heart.remove();
+        setHearts((prev) => prev.filter((h) => h.id !== id));
       }, 8000);
-    };
+    }, 400);
 
-    const interval = setInterval(createHeart, 400);
-    return () => {
-      clearInterval(interval);
-      heartContainer.remove();
-    };
+    return () => clearInterval(interval);
   }, []);
-   return (
+
+  return (
     <div className="relative flex items-center justify-center min-h-screen bg-gradient-to-br from-pink-100 via-rose-100 to-pink-200 px-4 z-5 opacity-1">
+      
+      {/* Floating Hearts Container */}
+      <div className="heart-container pointer-events-none fixed top-0 left-0 w-full h-full z-0 overflow-hidden">
+        <AnimatePresence>
+          {hearts.map((heart) => (
+            <motion.div
+              key={heart.id}
+              initial={{ y: "100vh", opacity: 0.3, scale: 0.6 }}
+              animate={{
+                y: "-20vh",
+                opacity: 1,
+                scale: 1.2,
+                x: ["0%", `${Math.random() * 20 - 10}%`],
+              }}
+              exit={{ opacity: 0 }}
+              transition={{
+                duration: heart.duration,
+                ease: "easeInOut",
+              }}
+              style={{
+                position: "absolute",
+                left: `${heart.left}%`,
+                fontSize: "30px",
+                zIndex: 5,
+                color: "#e11d48",
+              }}
+            >
+              <BsBalloonHeart />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
       {/* Main Join Card */}
       <div className="bg-white bg-opacity-90 backdrop-blur-sm shadow-xl rounded-3xl p-6 sm:p-8 w-full max-w-sm space-y-6 border border-rose-200 z-10">
         <h2 className="text-3xl font-bold text-center text-rose-600 tracking-wide">

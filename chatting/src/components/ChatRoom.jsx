@@ -2,6 +2,8 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SocketContext } from "../context/SocketContext";
 import EmojiPicker from "emoji-picker-react";
+import { FaPaperPlane, FaPaperclip, FaSmile, FaVideo } from "react-icons/fa";
+import { motion } from "framer-motion";
 
 const config = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -15,6 +17,7 @@ function ChatRoom({ roomId }) {
   const [mediaDiv, showMediaDiv] = useState(false);
   const [media, setMedia] = useState("");
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
   const navigate = useNavigate();
 
   const peerConnection = useRef(null);
@@ -256,113 +259,81 @@ function ChatRoom({ roomId }) {
     }
   };
 
-  // UIIIIIII
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>💬 Chat Room: {roomId}</h2>
-
-      <div style={{ width: "100%", maxWidth: "500px", margin: "20px auto" }}>
-        <div
-          style={{
-            height: "440px",
-            overflowY: "auto",
-            border: "1px solid #ccc",
-            borderRadius: "10px",
-            padding: "10px",
-            background: "#f9f9f9",
-          }}
+    <div className="h-screen flex flex-col bg-gradient-to-br from-pink-100 via-rose-100 to-pink-200">
+      <div className="flex justify-between items-center px-4 py-2 bg-rose-300 shadow-md">
+        <h2 className="text-lg font-bold text-rose-800">
+          💬 Room: <span className="italic">{roomId}</span>
+        </h2>
+        <button
+          onClick={() => navigate(`/video/${roomId}`)}
+          className="text-white bg-indigo-500 hover:bg-indigo-600 p-2 rounded-full"
         >
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              style={{
-                textAlign: msg.sender === "me" ? "right" : "left",
-                margin: "10px 0",
-              }}
-            >
-              <span
-                style={{
-                  background: msg.sender === "me" ? "#dcf8c6" : "#fff",
-                  padding: "8px 12px",
-                  borderRadius: "12px",
-                  display: "inline-block",
-                  color: "#333",
-                }}
-              >
-                {renderMessageContent(msg)}
-              </span>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+          <FaVideo />
+        </button>
+      </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            marginTop: "10px",
-            alignItems: "center",
-          }}
-        >
-          <button onClick={() => setShowEmojiPicker((prev) => !prev)}>
-            😊
-          </button>
-          <button onClick={sendMedia}>📎</button>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message"
-            style={{
-              flex: 1,
-              padding: "10px",
-              borderRadius: "6px",
-              border: "1px solid #ccc",
-            }}
-          />
-          <button
-            onClick={sendMessage}
-            style={{ backgroundColor: "#4CAF50", color: "white" }}
+      <div className="flex-1 overflow-y-auto px-4 py-2">
+        {messages.map((msg, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`my-2 flex ${msg.sender === "me" ? "justify-end" : "justify-start"}`}
           >
-            Send
+            <div className={`px-4 py-2 rounded-2xl max-w-[80%] text-sm sm:text-base shadow-md ${msg.sender === "me" ? "bg-rose-200 text-rose-900" : "bg-white border border-rose-100 text-rose-800"}`}>
+              {renderMessageContent(msg)}
+            </div>
+          </motion.div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {mediaDiv && (
+        <div className="flex items-center justify-between gap-2 p-2">
+          <input
+            type="file"
+            className="text-sm text-rose-700 border border-rose-300 rounded-md p-1"
+            onChange={(e) => setMedia(e.target.files[0])}
+          />
+          <button onClick={sendFile} className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-1 rounded">
+            🚀
           </button>
         </div>
+      )}
+
+      <div className="p-2 bg-white/80 backdrop-blur-md border-t border-rose-300 flex items-center gap-2">
+        <button onClick={() => setShowEmojiPicker((prev) => !prev)} className="text-2xl text-rose-500">
+          <FaSmile />
+        </button>
+
+        <button onClick={sendMedia} className="text-2xl text-rose-500">
+          <FaPaperclip />
+        </button>
+
+        <input
+          ref={inputRef}
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a message"
+          className="flex-1 px-3 py-2 rounded-xl border border-pink-300 focus:outline-none focus:ring-2 focus:ring-rose-400 placeholder-rose-400 text-rose-800 bg-white"
+        />
+
+        <button
+          onClick={sendMessage}
+          className="bg-rose-400 hover:bg-rose-500 text-white font-semibold p-2 rounded-full"
+        >
+          <FaPaperPlane />
+        </button>
 
         {showEmojiPicker && (
-          <div style={{ marginTop: "10px" }}>
+          <div className="absolute bottom-14 left-1 z-50">
             <EmojiPicker onEmojiClick={handleEmojiClick} />
           </div>
         )}
-
-        {mediaDiv && (
-          <div style={{ marginTop: "10px", flex: "flex" }}>
-            <input
-              type="file"
-              // value={media}
-              onChange={(e) => {
-                const file = e.target.files[0];
-                setMedia(file);
-              }}
-            />
-            <button onClick={sendFile}>send</button>
-          </div>
-        )}
       </div>
-
-      <hr />
-      <button
-        onClick={() => navigate(`/video/${roomId}`)}
-        style={{
-          padding: "10px 20px",
-          borderRadius: "6px",
-          backgroundColor: "#2196F3",
-          color: "white",
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        🎥 Start Video Call
-      </button>
     </div>
   );
 }
