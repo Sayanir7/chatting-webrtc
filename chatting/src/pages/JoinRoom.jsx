@@ -13,6 +13,7 @@ function JoinRoom() {
   const navigate = useNavigate();
 
   const handleJoin = () => {
+    if(!roomId)return;
     socket.emit('check-room', roomId);
 
     socket.once('room-status', ({ full }) => {
