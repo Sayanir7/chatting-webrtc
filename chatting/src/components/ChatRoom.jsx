@@ -15,6 +15,7 @@ function ChatRoom({ roomId }) {
   const [input, setInput] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [mediaDiv, showMediaDiv] = useState(false);
+  const [fileProgress, setFileProgress] = useState(0);
   const [media, setMedia] = useState("");
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -154,15 +155,19 @@ function ChatRoom({ roomId }) {
 
   const sendFile = () => {
     if (!dataChannel.current || dataChannel.current.readyState !== "open") {
-      alert("DataChannel not open yet");
+      alert("Roommate didn't join or network error");
+      showMediaDiv(false);
       return;
     }
+
     const file = media;
     if (!file) return;
 
     const chunkSize = 16 * 1024;
     let offset = 0;
     const reader = new FileReader();
+
+    setFileProgress(0); // Reset progress
 
     dataChannel.current.send(
       JSON.stringify({
@@ -195,10 +200,16 @@ function ChatRoom({ roomId }) {
     reader.onload = () => {
       dataChannel.current.send(reader.result);
       offset += chunkSize;
+
+      // Update progress
+      const progress = Math.min(100, Math.floor((offset / file.size) * 100));
+      setFileProgress(progress);
+
       if (offset < file.size) {
         readSlice();
       } else {
         dataChannel.current.send(JSON.stringify({ type: "done" }));
+        setTimeout(() => setFileProgress(0), 500); // Clear after sending
       }
     };
 
@@ -240,7 +251,7 @@ function ChatRoom({ roomId }) {
 
     return null;
   };
-    const cleanupConnection = () => {
+  const cleanupConnection = () => {
     try {
       showMediaDiv(false);
       if (dataChannel.current) {
@@ -280,9 +291,17 @@ function ChatRoom({ roomId }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className={`my-2 flex ${msg.sender === "me" ? "justify-end" : "justify-start"}`}
+            className={`my-2 flex ${
+              msg.sender === "me" ? "justify-end" : "justify-start"
+            }`}
           >
-            <div className={`px-4 py-2 rounded-2xl max-w-[80%] text-sm sm:text-base shadow-md ${msg.sender === "me" ? "bg-rose-200 text-rose-900" : "bg-white border border-rose-100 text-rose-800"}`}>
+            <div
+              className={`px-4 py-2 rounded-2xl max-w-[80%] text-sm sm:text-base shadow-md ${
+                msg.sender === "me"
+                  ? "bg-rose-200 text-rose-900"
+                  : "bg-white border border-rose-100 text-rose-800"
+              }`}
+            >
               {renderMessageContent(msg)}
             </div>
           </motion.div>
@@ -291,20 +310,38 @@ function ChatRoom({ roomId }) {
       </div>
 
       {mediaDiv && (
-        <div className="flex items-center justify-between gap-2 p-2">
-          <input
-            type="file"
-            className="text-sm text-rose-700 border border-rose-300 rounded-md p-1"
-            onChange={(e) => setMedia(e.target.files[0])}
-          />
-          <button onClick={sendFile} className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-1 rounded">
-            🚀
-          </button>
+        <div className="flex flex-col gap-2 p-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="file"
+              className="text-sm text-rose-700 border border-rose-300 rounded-md p-1"
+              onChange={(e) => setMedia(e.target.files[0])}
+            />
+            <button
+              onClick={sendFile}
+              className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-1 rounded"
+            >
+              🚀
+            </button>
+          </div>
+
+          {/* Progress bar */}
+          {fileProgress > 0 && (
+            <div className="w-full bg-rose-100 rounded-full h-2.5 mt-1">
+              <div
+                className="bg-rose-500 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${fileProgress}%` }}
+              ></div>
+            </div>
+          )}
         </div>
       )}
 
       <div className="p-2 bg-white/80 backdrop-blur-md border-t border-rose-300 flex items-center gap-2">
-        <button onClick={() => setShowEmojiPicker((prev) => !prev)} className="text-2xl text-rose-500">
+        <button
+          onClick={() => setShowEmojiPicker((prev) => !prev)}
+          className="text-2xl text-rose-500"
+        >
           <FaSmile />
         </button>
 
