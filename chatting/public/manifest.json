@@ -1,6 +1,14 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "name": "Secure Chatting",
+  "short_name": "SChat",
+  "description": "A sweet private chat app with video, file sharing, emojis and hearts.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffe4e6",
+  "theme_color": "#f43f5e",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "en-IN",
   "icons": [
     {
       "src": "favicon.ico",
@@ -17,9 +25,5 @@
       "type": "image/png",
       "sizes": "512x512"
     }
-  ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  ]
 }
