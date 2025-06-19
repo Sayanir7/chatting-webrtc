@@ -2,28 +2,42 @@
   "name": "Secure Chatting",
   "short_name": "SChat",
   "description": "A sweet private chat app with video, file sharing, emojis and hearts.",
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffe4e6",
   "theme_color": "#f43f5e",
   "orientation": "portrait",
   "scope": "/",
   "lang": "en-IN",
-  "icons": [
+   "icons": [
     {
       "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
+      "sizes": "48x48",
       "type": "image/x-icon"
     },
     {
-      "src": "logo192.png",
+      "src": "web-app-manifest-192x192.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "logo512.png",
+      "src": "favicon-96x96.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "96x96"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/phone_ss.jpg",
+      "sizes": "336x691",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshots/dextop_ss.jpg",
+      "sizes": "1902x927",
+      "type": "image/png",
+      "form_factor": "wide"
     }
   ]
 }
