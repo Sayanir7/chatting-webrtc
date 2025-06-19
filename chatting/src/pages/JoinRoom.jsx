@@ -37,7 +37,7 @@ function JoinRoom() {
       // Remove after 8s
       setTimeout(() => {
         setHearts((prev) => prev.filter((h) => h.id !== id));
-      }, 8000);
+      }, 2000);
     }, 400);
 
     return () => clearInterval(interval);

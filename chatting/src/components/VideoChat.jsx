@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { SocketContext } from "../context/SocketContext";
 import { useNavigate } from "react-router-dom";
+import { FaPhoneSlash, FaVideo, FaVideoSlash } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
 
 const config = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -18,6 +20,7 @@ function VideoChat({ roomId }) {
   const [remoteDescSet, setRemoteDescSet] = useState(false);
   const [bothReady, setBothReady] = useState(false);
   const [pendingCandidates, setPendingCandidates] = useState([]);
+  const [isLocalMain, setIsLocalMain] = useState(false);
 
   // ✅ Called when user clicks Start Video
   const handleStartVideo = async () => {
@@ -243,31 +246,57 @@ function VideoChat({ roomId }) {
     navigate(`/chat/${roomId}`);
   };
 
+  const swapVideos = () => setIsLocalMain((prev) => !prev);
+
   return (
-    <div style={{ textAlign: "center", marginTop: "20px" }}>
-      <h2>🎥 Room: {roomId}</h2>
+    <div className="relative w-full h-screen bg-black">
+      <AnimatePresence>
+        <motion.video
+          key={isLocalMain ? "local" : "remote"}
+          ref={isLocalMain ? localVideoRef : remoteVideoRef}
+          autoPlay
+          muted={isLocalMain}
+          playsInline
+          className="absolute w-full h-full object-cover z-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          // onClick={swapVideos}
+        />
+        <motion.video
+          key={isLocalMain ? "remote" : "local"}
+          ref={isLocalMain ? remoteVideoRef : localVideoRef}
+          autoPlay
+          muted={!isLocalMain}
+          playsInline
+          className="absolute w-32 h-48 sm:w-40 sm:h-60 bottom-4 right-4 z-20 rounded-xl border-2 border-white cursor-pointer object-cover shadow-md"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.8, opacity: 0 }}
+          onClick={swapVideos}
+        />
+      </AnimatePresence>
 
-      <button onClick={handleStartVideo} disabled={mediaStarted}>
-        {mediaStarted ? "Video Started" : "Start Video"}
-      </button>
-      <button onClick={handleLeaveCall}>leave</button>
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-white text-lg z-30">
+        Room: {roomId}
+      </div>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          gap: "20px",
-          marginTop: "20px",
-        }}
-      >
-        <div>
-          <h4>📷 Local Video</h4>
-          <video ref={localVideoRef} autoPlay playsInline muted width="300" />
-        </div>
-        <div>
-          <h4>🌐 Remote Video</h4>
-          <video ref={remoteVideoRef} autoPlay playsInline width="300" />
-        </div>
+      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-6 z-30">
+        {!mediaStarted ? (
+          <button
+            onClick={handleStartVideo}
+            className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-full shadow-xl"
+          >
+            <FaVideo />
+          </button>
+        ) : (
+          <button
+            onClick={handleLeaveCall}
+            className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-full shadow-xl"
+          >
+            <FaPhoneSlash />
+          </button>
+        )}
       </div>
     </div>
   );
