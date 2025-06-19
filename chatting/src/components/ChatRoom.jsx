@@ -25,6 +25,7 @@ function ChatRoom({ roomId }) {
   const dataChannel = useRef(null);
   const receivedChunks = useRef([]);
   const fileMeta = useRef(null);
+  const [receiveCall, setReceiveCall] = useState(false);
 
   // typing status
   const [isTyping, setIsTyping] = useState(false);
@@ -99,11 +100,17 @@ function ChatRoom({ roomId }) {
       }
     });
 
+    // receive call
+    socket.on("waiting", ()=>{
+      setReceiveCall(true);
+    })
+
     return () => {
       socket.off("chat-message");
       socket.off("offer");
       socket.off("answer");
       socket.off("ice-candidate");
+      socket.off("waiting");
     };
   }, [socket]);
 
@@ -312,8 +319,11 @@ function ChatRoom({ roomId }) {
         </h2>
         <button
           onClick={() => navigate(`/video/${roomId}`)}
-          className="text-white bg-indigo-500 hover:bg-indigo-600 p-2 rounded-full"
+          className="text-white flex items-center gap-1 bg-indigo-500 hover:bg-indigo-600 p-2 rounded-full"
         >
+          {receiveCall && (
+            <span>receive call</span>
+          )}
           <FaVideo />
         </button>
       </div>
