@@ -110,7 +110,17 @@ io.on('connection', (socket) => {
     });
   });
 
-  //manual disconnect
+  // typing status
+  socket.on("typing", ({ room }) => {
+    socket.to(room).emit("user-typing");
+  });
+
+  socket.on("stop-typing", ({ room }) => {
+    socket.to(room).emit("user-stop-typing");
+  });
+
+
+  //manual disconnect from video call
   socket.on("manual-disconnect", (roomId) => {
     console.log(`🔌 Manual disconnect: ${socket.id} from room ${roomId}`);
 

@@ -26,6 +26,35 @@ function ChatRoom({ roomId }) {
   const receivedChunks = useRef([]);
   const fileMeta = useRef(null);
 
+  // typing status
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
+
+  const handleTyping = (e) => {
+    setInput(e.target.value);
+    if (!isTyping) {
+      setIsTyping(true);
+      socket.emit("typing", { room: roomId });
+    }
+
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+      socket.emit("stop-typing", { room: roomId });
+    }, 1000);
+  };
+
+  const [someoneTyping, setSomeoneTyping] = useState(false);
+  useEffect(() => {
+    socket.on("user-typing", () => setSomeoneTyping(true));
+    socket.on("user-stop-typing", () => setSomeoneTyping(false));
+
+    return () => {
+      socket.off("user-typing");
+      socket.off("user-stop-typing");
+    };
+  }, []);
+
   useEffect(() => {
     socket.on("chat-message", ({ message, sender }) => {
       setMessages((prev) => [...prev, { sender, message }]);
@@ -273,8 +302,13 @@ function ChatRoom({ roomId }) {
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-pink-100 via-rose-100 to-pink-200">
       <div className="flex justify-between items-center px-4 py-2 bg-rose-300 shadow-md">
-        <h2 className="text-lg font-bold text-rose-800">
+        <h2 className="text-lg flex items-center font-bold text-rose-800">
           💬 Room: <span className="italic">{roomId}</span>
+          {someoneTyping && (
+          <p className="text-sm text-rose-500 italic px-4 pb-1">
+            typing...
+          </p>
+        )}
         </h2>
         <button
           onClick={() => navigate(`/video/${roomId}`)}
@@ -306,6 +340,15 @@ function ChatRoom({ roomId }) {
             </div>
           </motion.div>
         ))}
+        {someoneTyping && (
+          <div className="flex items-center mt-2 text-red-700">
+            <div className="flex items-center space-x-1 text-4xl font-bold">
+              <span className="animate-dot-pulse-1">.</span>
+              <span className="animate-dot-pulse-2">.</span>
+              <span className="animate-dot-pulse-3">.</span>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -353,7 +396,7 @@ function ChatRoom({ roomId }) {
           ref={inputRef}
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={handleTyping}
           placeholder="Type a message"
           className="flex-1 px-3 py-2 rounded-xl border border-pink-300 focus:outline-none focus:ring-2 focus:ring-rose-400 placeholder-rose-400 text-rose-800 bg-white"
         />
